@@ -1,14 +1,18 @@
 package net.fexcraft.mod.documents;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.logging.LogUtils;
+import net.fexcraft.mod.documents.data.Document;
+import net.fexcraft.mod.documents.data.DocumentItem;
 import net.minecraft.client.Minecraft;
+import net.minecraft.commands.Commands;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.item.*;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -23,6 +27,8 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -35,9 +41,9 @@ import org.slf4j.Logger;
 public class Documents {
 
     public static final String MODID = "documents";
-    private static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LogUtils.getLogger();
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
-    public static final DeferredItem<Item> DOCITEM = ITEMS.registerSimpleItem("document", new Item.Properties());
+    public static final DeferredItem<Item> DOCITEM = ITEMS.registerItem("document", func -> new DocumentItem());
 
     public Documents(IEventBus modEventBus){
         modEventBus.addListener(this::commonSetup);
@@ -47,7 +53,8 @@ public class Documents {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event){
-        //
+        DocRegistry.init();
+        DocPerms.loadperms();
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event){
@@ -59,13 +66,92 @@ public class Documents {
         //
     }
 
-    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents {
+    @Mod.EventBusSubscriber(modid = "documents")
+    public static class Events {
 
         @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event){
-            //
-            LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+        public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
+            if(event.getEntity().level().isClientSide) return;
+            DocRegistry.opj(event.getEntity());
+            //TODO CHANNEL.send(PacketDistributor.PLAYER.with(() -> (ServerPlayerEntity)event.getPlayer()), new SyncPacket(DocRegistry.confmap));
+        }
+
+        @SubscribeEvent
+        public static void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event){
+            if(event.getEntity().level().isClientSide) return;
+            DocRegistry.opl(event.getEntity());
+        }
+
+        @SubscribeEvent
+        public static void onCmdReg(RegisterCommandsEvent event){
+            event.getDispatcher().register(Commands.literal("documents")
+                .then(Commands.literal("list").executes(cmd -> {
+                    cmd.getSource().sendSystemMessage(Component.literal("\u00A77============"));
+                    for(String str : DocRegistry.DOCS.keySet()){
+                        cmd.getSource().sendSystemMessage(Component.literal(str));
+                    }
+                    return 0;
+                }))
+                .then(Commands.literal("uuid").executes(cmd -> {
+                    LOGGER.info(cmd.getSource().getPlayerOrException().toString());
+                    cmd.getSource().sendSystemMessage(Component.literal(cmd.getSource().getPlayerOrException().getGameProfile().getId().toString()));
+                    return 0;
+                }))
+                .then(Commands.literal("reload-perms").executes(cmd -> {
+                    Player entity = cmd.getSource().getPlayerOrException();
+                    if(!DocPerms.hasPerm(entity, "command.reload-perms") && !entity.hasPermissions(4)){
+                        cmd.getSource().sendFailure(Component.translatable("documents.cmd.no_permission"));
+                        return 1;
+                    }
+                    DocPerms.loadperms();
+                    cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.perms_reloaded"));
+                    return 0;
+                }))
+                .then(Commands.literal("reload-docs").executes(cmd -> {
+                    Player entity = cmd.getSource().getPlayerOrException();
+                    if(!DocPerms.hasPerm(entity, "command.reload-docs") && !entity.hasPermissions(4)){
+                        cmd.getSource().sendFailure(Component.translatable("documents.cmd.no_permission"));
+                        return 1;
+                    }
+                    DocRegistry.init();
+                    entity.getServer().getPlayerList().getPlayers().forEach(player -> {
+                        //TODO CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SyncPacket(DocRegistry.confmap));
+                    });
+                    cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.docs_reloaded"));
+                    return 0;
+                }))
+                .then(Commands.literal("get").then(Commands.argument("id", StringArgumentType.word()).executes(cmd -> {
+                    Document doc = DocRegistry.DOCS.get(cmd.getArgument("id", String.class));
+                    if(doc == null){
+                        cmd.getSource().sendFailure(Component.translatable("documents.cmd.doc_not_found"));
+                        return -1;
+                    }
+                    else{
+                        if(!DocPerms.hasPerm(cmd.getSource().getPlayerOrException(), "command.get", doc.id)){
+                            cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.no_permission"));
+                            return -1;
+                        }
+                        ItemStack stack = new ItemStack(DocumentItem.INSTANCE);
+                        CompoundTag com = stack.hasTag() ? stack.getTag() : new CompoundTag();
+                        com.putString(DocumentItem.NBTKEY, doc.id);
+                        stack.setTag(com);
+                        cmd.getSource().getPlayerOrException().addItem(stack);
+                        cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.added"));
+                        LOGGER.info(com.toString());
+                    }
+                    return 0;
+                })))
+                .executes(cmd -> {
+                    cmd.getSource().sendSystemMessage(Component.literal("\u00A77============"));
+                    cmd.getSource().sendSystemMessage(Component.literal("/documents list"));
+                    cmd.getSource().sendSystemMessage(Component.literal("/documents get"));
+                    cmd.getSource().sendSystemMessage(Component.literal("/documents uuid"));
+                    cmd.getSource().sendSystemMessage(Component.literal("/documents reload-perms"));
+                    cmd.getSource().sendSystemMessage(Component.literal("/documents reload-docs"));
+                    cmd.getSource().sendSystemMessage(Component.literal("\u00A77============"));
+                    return 0;
+                })
+            );
         }
 
     }
