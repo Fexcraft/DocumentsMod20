@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.*;
 import net.fexcraft.mod.documents.Documents;
 import net.fexcraft.mod.documents.ExternalTextures;
 import net.fexcraft.mod.documents.data.FieldData;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -18,6 +18,7 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -42,7 +43,6 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
     protected String statustext;
     protected EditBox field;
     //
-    private static DocEditorScreen SCREEN;
     private static ResourceLocation tempimg;
 
     public DocEditorScreen(DocEditorContainer container, Inventory inventory, Component component){
@@ -53,7 +53,6 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
             inventory.player.sendSystemMessage(Component.translatable("item.missing.doc"));
             inventory.player.closeContainer();
         }
-        SCREEN = this;
     }
 
     @Override
@@ -66,7 +65,7 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
         fieldkeys = list.toArray(new String[0]);
         for(int i = 0; i < fieldbuttons.length; i++){
             int I = i;
-            children().add(fieldbuttons[i] = new GenericButton(leftPos + 17, topPos + 8 + i * 10, 17, 8 + i * 10, 48, 8, Component.literal("")){
+            fieldbuttons[i] = new GenericButton(leftPos + 17, topPos + 8 + i * 10, 17, 8 + i * 10, 48, 8, Component.literal("")){
                 @Override
                 public void onPress(){
                     if(I + scroll >= fieldkeys.length) return;
@@ -103,29 +102,29 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
                     }
                     statustext = null;
                 }
-            }.text(true));
-            //this.texts.put("f" + i, new BasicText(guiLeft + 18, guiTop + 8 + i * 10, 46, null, "...").autoscale());
+            }.text(true);
+            addWidget(fieldbuttons[i]);
         }
-        buttons.add(new GenericButton(leftPos + 7, topPos + 7, 7, 7, 7, 7, Component.literal("up")){
+        addWidget(new GenericButton(leftPos + 7, topPos + 7, 7, 7, 7, 7, Component.literal("up")){
             @Override
             public void onPress(){
                 if(scroll > 0) scroll--;
             }
         });
-        buttons.add(new GenericButton(leftPos + 7, topPos + 90, 7, 90, 7, 7, Component.literal("down")){
+        addWidget(new GenericButton(leftPos + 7, topPos + 90, 7, 90, 7, 7, Component.literal("down")){
             @Override
             public void onPress(){
                 if(scroll < fieldkeys.length - 1) scroll++;
             }
         });
         for(int i = 0; i < infotext.length; i++){
-            buttons.add(infotext[i] = new GenericText(leftPos + 71, topPos + 10 + i * 12, 125, "").autoscale());
+            addWidget(infotext[i] = new GenericText(leftPos + 71, topPos + 10 + i * 12, 125, "").autoscale());
         }
-        buttons.add(valueinfo = new GenericText(leftPos + 71, topPos + 60, 175, "...").autoscale().color(0xffffff));
-        buttons.add(status = new GenericText(leftPos + 69, topPos + 87, 153, "...").autoscale().color(0x000000));
-        children.add(field = new EditBox(minecraft.font, leftPos + 70, topPos + 71, 166, 10, Component.translatable("...")));
+        addWidget(valueinfo = new GenericText(leftPos + 71, topPos + 60, 175, "...").autoscale().color(0xffffff));
+        addWidget(status = new GenericText(leftPos + 69, topPos + 87, 153, "...").autoscale().color(0x000000));
+        addWidget(field = new EditBox(minecraft.font, leftPos + 70, topPos + 71, 166, 10, Component.translatable("...")));
         field.setVisible(false);
-        buttons.add(concanbuttons[0] = new GenericButton(leftPos + 237, topPos + 71, 237, 71, 10, 10, "confirm_value"){
+        addWidget(concanbuttons[0] = new GenericButton(leftPos + 237, topPos + 71, 237, 71, 10, 10, "confirm_value"){
             @Override
             public void onPress(){
                 if(data == null || !data.type.editable) return;
@@ -149,14 +148,14 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
                 }
             }
         });
-        buttons.add(concanbuttons[1] = new GenericButton(leftPos + 224, topPos + 85, 224, 85, 12, 12, "cancel"){
+        addWidget(concanbuttons[1] = new GenericButton(leftPos + 224, topPos + 85, 224, 85, 12, 12, "cancel"){
             @Override
             public void onPress(){
-                inventory.player.closeContainer();
+                menu.player.closeContainer();
                 minecraft.setScreen(null);
             }
         });
-        buttons.add(concanbuttons[2] = new GenericButton(leftPos + 237, topPos + 85, 237, 85, 12, 12, "confirm"){
+        addWidget(concanbuttons[2] = new GenericButton(leftPos + 237, topPos + 85, 237, 85, 12, 12, "confirm"){
             @Override
             public void onPress(){
                 if(todo > 0){
@@ -216,30 +215,32 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
         valueinfo.setMessage(Component.literal(ex && data.value != null ? data.value : ""));
         getStatus();
         //
-        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
-        minecraft.textureManager.bind(TEXTURE);
-        blit(matrix, leftPos, topPos, 0, 0, imageWidth, imageHeight);
-        RenderSystem.disableRescaleNormal();
+        matrix.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        //minecraft.textureManager.bindForSetup(TEXTURE);
+        matrix.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight);
+        //RenderSystem.disableRescaleNormal();
         RenderSystem.disableDepthTest();
         for(GuiEventListener w : children()) if(w instanceof AbstractWidget) ((AbstractWidget)w).render(matrix, x, y, ticks);
         //
         RenderSystem.enableBlend();
-        RenderSystem.enableAlphaTest();
+        //RenderSystem.enableAlphaTest();
         if(ex && data.type.image() && tempimg != null){
-            minecraft.textureManager.bind(tempimg);
-            draw(matrix.last().pose(), leftPos + 199, topPos + 9, 48, 48);
+            //minecraft.textureManager.bind(tempimg);
+            draw(matrix, tempimg, leftPos + 199, topPos + 9, 48, 48);
         }
     }
     
-    public static void draw(Matrix4f matrix, int x, int y, int w, int h){
-        BufferBuilder buffer = Tessellator.getInstance().getBuilder();
-        buffer.begin(7, DefaultVertexFormats.POSITION_TEX);
-        buffer.vertex(matrix, x, y + h, 0).uv(0, 1).endVertex();
-        buffer.vertex(matrix, x + w, y + h, 0).uv(1, 1).endVertex();
-        buffer.vertex(matrix, x + w, y, 0).uv(1, 0).endVertex();
-        buffer.vertex(matrix, x, y, 0).uv(0, 0).endVertex();
-        buffer.end();
-        WorldVertexBufferUploader.end(buffer);
+    public static void draw(GuiGraphics gg, ResourceLocation texture, int x, int y, int w, int h){
+        RenderSystem.setShaderTexture(0, texture);
+        RenderSystem.setShader(GameRenderer::getPositionTexShader);
+        Matrix4f matrix = gg.pose().last().pose();
+        BufferBuilder bufferbuilder = Tesselator.getInstance().getBuilder();
+        bufferbuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+        bufferbuilder.vertex(matrix, x, y + h, 0).uv(0, 1).endVertex();
+        bufferbuilder.vertex(matrix, x + w, y + h, 0).uv(1, 1).endVertex();
+        bufferbuilder.vertex(matrix, x + w, y, 0).uv(1, 0).endVertex();
+        bufferbuilder.vertex(matrix, x, y, 0).uv(0, 0).endVertex();
+        BufferUploader.drawWithShader(bufferbuilder.end());
     }
 
     private void getStatus(){
@@ -272,9 +273,8 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
     }
 
     @Override
-    public void tick(){
-        super.tick();
-        field.tick();
+    public void containerTick(){
+        //TODO field.tick();
     }
 
     public static abstract class GenericButton extends AbstractButton {
@@ -304,11 +304,16 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
 
         @Override
         public void renderWidget(GuiGraphics stack, int mx, int my, float ticks){
-            Minecraft.getInstance().getTextureManager().bind(texture);
-            if(isHovered) RenderSystem.color4f(0.85f, 0.7f, 0.18f, 0.75f);
-            blit(stack, x, y, tx, ty, width, height);
-            RenderSystem.color4f(1, 1, 1, 1);
-            if(text) drawCenteredString(stack, Minecraft.getInstance().font, getMessage(), x + width / 2, y + (height - 8) / 2, getFGColor());
+            //Minecraft.getInstance().getTextureManager().bind(texture);
+            if(isHovered) stack.setColor(0.85f, 0.7f, 0.18f, 0.75f);
+            stack.blit(texture, getX(), getY(), tx, ty, width, height);
+            stack.setColor(1, 1, 1, 1);
+            if(text) stack.drawCenteredString(Minecraft.getInstance().font, getMessage(), getX() + width / 2, getY() + (height - 8) / 2, getFGColor());
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput neo){
+            neo.add(NarratedElementType.HINT, getMessage());
         }
 
     }
@@ -355,23 +360,22 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
                         stack.pose().scale(scale, scale, scale);
                     }
                 }
-                Minecraft.getInstance().font.drawInternal(temp, 0, 0, color == null ? getFGColor() : color, stack.last().pose(), false, false);
+                stack.drawString(Minecraft.getInstance().font, temp, 0, 0, color == null ? getFGColor() : color);
                 stack.pose().popPose();
             }
             //if(!centered) drawString(stack, Minecraft.getInstance().font, getMessage(), x, y, color == null ? getFGColor() : color);
             //else drawCenteredString(stack, Minecraft.getInstance().font, getMessage(), x + width / 2, y + (height - 8) / 2, color == null ? getFGColor() : color);
             else{
-                FontRenderer font = Minecraft.getInstance().font;
-                Minecraft.getInstance().font.drawInternal(temp, x + width / 2 - (font.width(temp) / 2), y + (height - 8) / 2, color == null ? getFGColor() : color, stack.last().pose(), false, false);
+                Font font = Minecraft.getInstance().font;
+                stack.drawString(font, temp, getX() + width / 2 - (font.width(temp) / 2), getY() + (height - 8) / 2, color == null ? getFGColor() : color);
             }
             if(this.isHovered) renderToolTip(stack, mx, my);
         }
 
-        @Override
         public void renderToolTip(GuiGraphics stack, int mx, int my){
             if(getMessage() == null || getMessage().getString() == null) return;
             try{
-                SCREEN.renderTooltip(stack, getMessage(), mx, my);
+                stack.renderTooltip(Minecraft.getInstance().font, getMessage(), mx, my);
             }
             catch(Exception e){
                 //
