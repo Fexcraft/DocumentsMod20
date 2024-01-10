@@ -11,48 +11,49 @@ import net.fexcraft.mod.documents.Documents;
 import net.fexcraft.mod.documents.data.Document;
 import net.fexcraft.mod.documents.data.FieldData;
 import net.fexcraft.mod.documents.data.FieldType;
-import net.fexcraft.mod.documents.packet.GuiPacket;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.entity.player.ServerPlayerEntity;
-import net.minecraft.inventory.container.Container;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.Hand;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraftforge.fml.network.PacketDistributor;
-import net.minecraftforge.fml.server.ServerLifecycleHooks;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
-public class DocEditorContainer extends Container implements UiPacketReceiver {
+public class DocEditorContainer extends AbstractContainerMenu implements UiPacketReceiver {
 
     protected ItemStack stack;
     protected Document doc;
     protected DocEditorScreen screen;
-    protected PlayerEntity player;
+    protected Player player;
 
-    public DocEditorContainer(int id, PlayerInventory inv){
+    public DocEditorContainer(int id, Inventory inv){
         super(Documents.DOC_EDITOR.get(), id);
-        stack = inv.player.getItemInHand(Hand.MAIN_HAND);
+        stack = inv.player.getItemInHand(InteractionHand.MAIN_HAND);
         player = inv.player;
         doc = DocRegistry.get(stack);
     }
 
-    public DocEditorContainer(int id, PlayerInventory inv, PacketBuffer buffer){
+    public DocEditorContainer(int id, Inventory inv, FriendlyByteBuf buffer){
         this(id, inv);
     }
 
     @Override
-    public boolean stillValid(PlayerEntity player){
+    public ItemStack quickMoveStack(Player player, int i){
+        return ItemStack.EMPTY;
+    }
+
+    @Override
+    public boolean stillValid(Player player){
         return true;
     }
 
     @Override
-    public void onPacket(CompoundNBT com, boolean client){
+    public void onPacket(CompoundTag com, boolean client){
         if(com.contains("issue") && com.getBoolean("issue")){
             if(!client && !DocPerms.hasPerm(player, "document.issue", doc.id)){
-                player.sendMessage(new TranslationTextComponent("documents.editor.noperm"), player.getGameProfile().getId());
+                player.sendSystemMessage(Component.translatable("documents.editor.noperm"));
                 return;
             }
             issueBy(stack.getTag(), player, client);
@@ -61,13 +62,13 @@ public class DocEditorContainer extends Container implements UiPacketReceiver {
             }
             else{
                 player.closeContainer();
-                player.sendMessage(new TranslationTextComponent("documents.editor.signed"), player.getGameProfile().getId());
+                player.sendSystemMessage(Component.translatable("documents.editor.signed"));
             }
             return;
         }
         if(!com.contains("field")) return;
         if(!client && !DocPerms.hasPerm(player, "document.edit", doc.id)){
-            player.sendMessage(new TranslationTextComponent("documents.editor.noperm"), player.getGameProfile().getId());
+            player.sendSystemMessage(Component.translatable("documents.editor.noperm"));
             return;
         }
         String field = com.getString("field");
@@ -86,7 +87,7 @@ public class DocEditorContainer extends Container implements UiPacketReceiver {
                 }
                 catch(Exception e){
                     e.printStackTrace();
-                    player.sendMessage(new StringTextComponent("Error: " + e.getMessage()), player.getGameProfile().getId());
+                    player.sendSystemMessage(Component.literal("Error: " + e.getMessage()));
                     return;
                 }
             }
@@ -96,13 +97,13 @@ public class DocEditorContainer extends Container implements UiPacketReceiver {
                 }
                 catch(Exception e){
                     e.printStackTrace();
-                    player.sendMessage(new StringTextComponent("Error: " + e.getMessage()), player.getGameProfile().getId());
+                    player.sendSystemMessage(Component.literal("Error: " + e.getMessage()));
                     return;
                 }
             }
             else if(data.type == FieldType.UUID){
                 try{
-                    GameProfile gp = ServerLifecycleHooks.getCurrentServer().getProfileCache().get(value);
+                    GameProfile gp = ServerLifecycleHooks.getCurrentServer().getProfileCache().get(value).get();
                     if(gp != null && gp.getId() != null && gp.getName() != null){
                         value = gp.getId().toString();
                     }
@@ -110,7 +111,7 @@ public class DocEditorContainer extends Container implements UiPacketReceiver {
                 }
                 catch(Exception e){
                     e.printStackTrace();
-                    player.sendMessage(new StringTextComponent("Error: " + e.getMessage()), player.getGameProfile().getId());
+                    player.sendSystemMessage(Component.literal("Error: " + e.getMessage()));
                     return;
                 }
             }
@@ -124,13 +125,13 @@ public class DocEditorContainer extends Container implements UiPacketReceiver {
         }
     }
 
-    private void issueBy(CompoundNBT com, PlayerEntity player, boolean client){
+    private void issueBy(CompoundTag com, Player player, boolean client){
         com.putString("document:issuer", player.getGameProfile().getId().toString());
         com.putString("document:issued", new Date().getTime() + "");
         com.putString("document:issuer_name", player.getGameProfile().getName());
         if(client) return;
         try{
-            GameProfile gp = ServerLifecycleHooks.getCurrentServer().getProfileCache().get(UUID.fromString(com.getString("document:uuid")));
+            GameProfile gp = ServerLifecycleHooks.getCurrentServer().getProfileCache().get(UUID.fromString(com.getString("document:uuid"))).get();
             com.putString("document:player_name", gp.getName());
         }
         catch(Exception e){
