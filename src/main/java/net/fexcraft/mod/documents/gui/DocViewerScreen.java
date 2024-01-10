@@ -91,11 +91,11 @@ public class DocViewerScreen extends AbstractContainerScreen<DocViewerContainer>
                 if(field.color != null) text.color(field.color);
                 if(field.fontscale > 0) text.scale(field.fontscale);
                 if(field.autoscale) text.autoscale();
-                children().add(text);
+                addWidget(text);
             }
         }
         if(pageidx > 0){
-            buttons.add(new PageArrow(leftPos - 30, topPos + 8, 0, 234, 22, 22){
+            addWidget(new PageArrow(leftPos - 30, topPos + 8, 0, 234, 22, 22){
                 @Override
                 public void onPress(){
                     CompoundTag compound = new CompoundTag();
@@ -105,7 +105,7 @@ public class DocViewerScreen extends AbstractContainerScreen<DocViewerContainer>
             });
         }
         if(pageidx < doc.pages.size() - 1){
-            buttons.add(new PageArrow(leftPos + imageWidth + 8, topPos + 8, 24, 234, 22, 22){
+            addWidget(new PageArrow(leftPos + imageWidth + 8, topPos + 8, 24, 234, 22, 22){
                 @Override
                 public void onPress(){
                     CompoundTag compound = new CompoundTag();
@@ -133,19 +133,19 @@ public class DocViewerScreen extends AbstractContainerScreen<DocViewerContainer>
 
     @Override
     protected void renderBg(GuiGraphics matrix, float ticks, int x, int y){
-        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
-        minecraft.textureManager.bind(texloc);
-        blit(matrix, leftPos, topPos, 0, 0, imageWidth, imageHeight);
-        RenderSystem.disableRescaleNormal();
+        matrix.setColor(1, 1, 1, 1);
+        //minecraft.textureManager.bindForSetup(texloc);
+        matrix.blit(texloc, leftPos, topPos, 0, 0, imageWidth, imageHeight);
+        //RenderSystem.disableRescaleNormal();
         RenderSystem.disableDepthTest();
         for(GuiEventListener w : children()) if(w instanceof AbstractWidget) ((AbstractWidget)w).render(matrix, x, y, ticks);
         //
         RenderSystem.enableBlend();
-        RenderSystem.enableAlphaTest();
+        //RenderSystem.enableAlphaTest();
         for(int i = 0; i < images.size(); i++){
-            minecraft.textureManager.bind(images.get(i));
+            minecraft.textureManager.bindForSetup(images.get(i));
             int[] imgloc = imgpos.get(i);
-            DocEditorScreen.draw(matrix.last().pose(), leftPos + imgloc[0], topPos + imgloc[1], imgloc[2], imgloc[3]);
+            DocEditorScreen.draw(matrix, images.get(i), leftPos + imgloc[0], topPos + imgloc[1], imgloc[2], imgloc[3]);
         }
     }
 
@@ -155,8 +155,8 @@ public class DocViewerScreen extends AbstractContainerScreen<DocViewerContainer>
     }
 
     @Override
-    public void tick(){
-        super.tick();
+    public void containerTick(){
+        //
     }
 
     public static abstract class PageArrow extends GenericButton {
