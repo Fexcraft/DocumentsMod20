@@ -12,8 +12,12 @@ public interface UiPacketReceiver {
 	public void onPacket(CompoundTag com, boolean client);
 
 	public default void send(boolean toclient, CompoundTag compound, Player player){
-		if(toclient) Documents.CHANNEL.send(PacketDistributor.PLAYER.with((ServerPlayer)player), new GuiPacket(compound));
-		else Documents.CHANNEL.sendToServer(new GuiPacket(compound));
+		if(toclient){
+			PacketDistributor.PLAYER.with((ServerPlayer)player).send(new GuiPacket(compound));
+		}
+		else{
+			PacketDistributor.SERVER.noArg().send(new GuiPacket(compound));
+		}
 	}
 
 }
