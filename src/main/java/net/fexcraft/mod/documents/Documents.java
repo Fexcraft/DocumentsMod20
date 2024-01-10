@@ -75,8 +75,8 @@ public class Documents {
         //
     }
 
-    @Mod.EventBusSubscriber(modid = "documents")
-    public static class Events {
+    @Mod.EventBusSubscriber(modid = "documents", bus = Mod.EventBusSubscriber.Bus.MOD)
+    public static class RegistryEvents {
 
         @SubscribeEvent
         public static void register(final RegisterPayloadHandlerEvent event) {
@@ -87,6 +87,11 @@ public class Documents {
                 handler.client(GuiPacket::handle_client);
             });
         }
+
+    }
+
+    @Mod.EventBusSubscriber(modid = "documents")
+    public static class Events {
 
         @SubscribeEvent
         public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
