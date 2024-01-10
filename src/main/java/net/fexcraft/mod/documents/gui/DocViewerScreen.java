@@ -1,12 +1,7 @@
 package net.fexcraft.mod.documents.gui;
 
-import java.util.ArrayList;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
-
-import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.fexcraft.mod.documents.Documents;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.fexcraft.mod.documents.ExternalTextures;
 import net.fexcraft.mod.documents.data.DocPage;
 import net.fexcraft.mod.documents.data.DocPage.DocPageField;
@@ -15,27 +10,20 @@ import net.fexcraft.mod.documents.data.FieldData;
 import net.fexcraft.mod.documents.data.FieldType;
 import net.fexcraft.mod.documents.gui.DocEditorScreen.GenericButton;
 import net.fexcraft.mod.documents.gui.DocEditorScreen.GenericText;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.IGuiEventListener;
-import net.minecraft.client.gui.screen.inventory.ContainerScreen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.gui.widget.Widget;
-import net.minecraft.client.gui.widget.button.AbstractButton;
-import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.WorldVertexBufferUploader;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.client.resources.I18n;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.vector.Matrix4f;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
 
-public class DocViewerScreen extends ContainerScreen<DocViewerContainer> {
+import java.util.ArrayList;
+import java.util.Map.Entry;
+
+public class DocViewerScreen extends AbstractContainerScreen<DocViewerContainer> {
 
     private static DocViewerScreen SCREEN;
     //
@@ -47,10 +35,10 @@ public class DocViewerScreen extends ContainerScreen<DocViewerContainer> {
     public ArrayList<int[]> imgpos = new ArrayList<>();
     public static ResourceLocation texloc;
 
-    public DocViewerScreen(DocViewerContainer container, PlayerInventory inventory, ITextComponent component){
+    public DocViewerScreen(DocViewerContainer container, Inventory inventory, Component component){
         super(container, inventory, component);
         if(container.doc == null){
-            inventory.player.sendMessage(new StringTextComponent("item.missing.doc"), null);
+            inventory.player.sendSystemMessage(Component.translatable("item.missing.doc"));
             inventory.player.closeContainer();
         }
         doc = container.doc;
@@ -99,18 +87,18 @@ public class DocViewerScreen extends ContainerScreen<DocViewerContainer> {
                 }
                 else val = field.getValue(menu.stack);
                 String format = field.format == null ? "" : field.format;
-                GenericText text = new GenericText(leftPos + x, topPos + y, sx, new StringTextComponent(format.replace("&", "\u00A7") + I18n.get(val)));
+                GenericText text = new GenericText(leftPos + x, topPos + y, sx, Component.literal(format.replace("&", "\u00A7") + I18n.get(val)));
                 if(field.color != null) text.color(field.color);
                 if(field.fontscale > 0) text.scale(field.fontscale);
                 if(field.autoscale) text.autoscale();
-                children.add(text);
+                children().add(text);
             }
         }
         if(pageidx > 0){
             buttons.add(new PageArrow(leftPos - 30, topPos + 8, 0, 234, 22, 22){
                 @Override
                 public void onPress(){
-                    CompoundNBT compound = new CompoundNBT();
+                    CompoundTag compound = new CompoundTag();
                     compound.putInt("open_page", pageidx - 1);
                     menu.send(false, compound, menu.player);
                 }
@@ -120,7 +108,7 @@ public class DocViewerScreen extends ContainerScreen<DocViewerContainer> {
             buttons.add(new PageArrow(leftPos + imageWidth + 8, topPos + 8, 24, 234, 22, 22){
                 @Override
                 public void onPress(){
-                    CompoundNBT compound = new CompoundNBT();
+                    CompoundTag compound = new CompoundTag();
                     compound.putInt("open_page", pageidx + 1);
                     menu.send(false, compound, menu.player);
                 }
@@ -139,18 +127,18 @@ public class DocViewerScreen extends ContainerScreen<DocViewerContainer> {
 
     @Override
     public boolean mouseClicked(double pMouseX, double pMouseY, int pButton){
-        for(Widget button : buttons) if(button.mouseClicked(pMouseX, pMouseY, pButton)) return true;
+        for(GuiEventListener button : children()) if(button.mouseClicked(pMouseX, pMouseY, pButton)) return true;
         return super.mouseClicked(pMouseX, pMouseY, pButton);
     }
 
     @Override
-    protected void renderBg(MatrixStack matrix, float ticks, int x, int y){
+    protected void renderBg(GuiGraphics matrix, float ticks, int x, int y){
         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
         minecraft.textureManager.bind(texloc);
         blit(matrix, leftPos, topPos, 0, 0, imageWidth, imageHeight);
         RenderSystem.disableRescaleNormal();
         RenderSystem.disableDepthTest();
-        for(IGuiEventListener w : children) if(w instanceof Widget) ((Widget)w).render(matrix, x, y, ticks);
+        for(GuiEventListener w : children()) if(w instanceof AbstractWidget) ((AbstractWidget)w).render(matrix, x, y, ticks);
         //
         RenderSystem.enableBlend();
         RenderSystem.enableAlphaTest();
@@ -162,7 +150,7 @@ public class DocViewerScreen extends ContainerScreen<DocViewerContainer> {
     }
 
     @Override
-    protected void renderLabels(MatrixStack stack, int x, int y){
+    protected void renderLabels(GuiGraphics stack, int x, int y){
         //
     }
 
@@ -177,9 +165,9 @@ public class DocViewerScreen extends ContainerScreen<DocViewerContainer> {
             super(x, y, tx, ty, sizex, sizey);
         }
 
-        public void renderButton(MatrixStack stack, int mx, int my, float ticks){
+        public void renderWidget(GuiGraphics stack, int mx, int my, float ticks){
             //Minecraft.getInstance().textureManager.bind(DocEditorScreen.TEXTURE);
-            super.renderButton(stack, mx, my, ticks);
+            super.renderWidget(stack, mx, my, ticks);
             //Minecraft.getInstance().textureManager.bind(texloc);
         }
 
