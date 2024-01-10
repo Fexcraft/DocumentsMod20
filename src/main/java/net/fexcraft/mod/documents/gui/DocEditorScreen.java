@@ -90,6 +90,7 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
                         String val = data.getValue(menu.stack);
                         field.setValue(val == null ? "" : val);
                         field.setVisible(true);
+                        field.setFocused(true);
                         field.setFilter(str -> {
                             if(data.type.number()){
 
@@ -360,14 +361,12 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
                         stack.pose().scale(scale, scale, scale);
                     }
                 }
-                stack.drawString(Minecraft.getInstance().font, temp, 0, 0, color == null ? getFGColor() : color);
+                stack.drawString(Minecraft.getInstance().font, temp, 0, 0, color == null ? getFGColor() : color, false);
                 stack.pose().popPose();
             }
-            //if(!centered) drawString(stack, Minecraft.getInstance().font, getMessage(), x, y, color == null ? getFGColor() : color);
-            //else drawCenteredString(stack, Minecraft.getInstance().font, getMessage(), x + width / 2, y + (height - 8) / 2, color == null ? getFGColor() : color);
             else{
                 Font font = Minecraft.getInstance().font;
-                stack.drawString(font, temp, getX() + width / 2 - (font.width(temp) / 2), getY() + (height - 8) / 2, color == null ? getFGColor() : color);
+                stack.drawString(font, temp, getX() + width / 2 - (font.width(temp) / 2), getY() + (height - 8) / 2, color == null ? getFGColor() : color, false);
             }
             if(this.isHovered) renderToolTip(stack, mx, my);
         }
