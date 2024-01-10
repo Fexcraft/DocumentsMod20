@@ -8,10 +8,12 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 public class DocViewerContainer extends AbstractContainerMenu implements UiPacketReceiver {
 
@@ -48,17 +50,18 @@ public class DocViewerContainer extends AbstractContainerMenu implements UiPacke
         Documents.LOGGER.info(client + " " + com);
         if(com.contains("open_page")){
             if(client) return;
-            /*NetworkHooks.openGui((ServerPlayer)player, new INamedContainerProvider() {
+            player.openMenu(new MenuProvider() {
                 @Override
                 public Component getDisplayName(){
                     return Component.literal("Document Viewer");
                 }
 
+                @Nullable
                 @Override
-                public AbstractContainerMenu createMenu(int i, Inventory pinv, Player ent){
-                    return new DocViewerContainer(i, pinv);
+                public AbstractContainerMenu createMenu(int i, Inventory inventory, Player player){
+                    return new DocViewerContainer(i, inventory);
                 }
-            }, buf -> buf.writeInt(com.getInt("open_page")));*/
+            }, buf -> buf.writeInt(com.getInt("open_page")));
             return;
         }
     }
