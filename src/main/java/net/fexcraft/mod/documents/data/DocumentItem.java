@@ -1,17 +1,23 @@
 package net.fexcraft.mod.documents.data;
 
 import net.fexcraft.mod.documents.DocRegistry;
+import net.fexcraft.mod.documents.gui.DocEditorContainer;
+import net.fexcraft.mod.documents.gui.DocViewerContainer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -59,17 +65,18 @@ public class DocumentItem extends Item {
 				return InteractionResultHolder.fail(stack);
 			}
 			else{
-				/*NetworkHooks.openGui((ServerPlayerEntity)player, new INamedContainerProvider() {
+				player.openMenu(new MenuProvider(){
 					@Override
-					public ITextComponent getDisplayName(){
-						return new StringTextComponent(com.contains("document:issued") ? "Document Viewer" : "Document Editor");
+					public Component getDisplayName(){
+						return Component.literal(com.contains("document:issued") ? "Document Viewer" : "Document Editor");
 					}
 
+					@Nullable
 					@Override
-					public Container createMenu(int i, PlayerInventory pinv, PlayerEntity ent){
-						return com.contains("document:issued") ? new DocViewerContainer(i, pinv) : new DocEditorContainer(i, pinv);
+					public AbstractContainerMenu createMenu(int i, Inventory inventory, Player player) {
+						return com.contains("document:issued") ? new DocViewerContainer(i, inventory) : new DocEditorContainer(i, inventory);
 					}
-				}, buf -> buf.writeInt(0));*///TODO
+				}, buf -> buf.writeInt(0));
 				return InteractionResultHolder.success(stack);
 			}
 		}
