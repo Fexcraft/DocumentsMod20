@@ -27,11 +27,15 @@ public record GuiPacket(CompoundTag com) implements CustomPacketPayload {
 	}
 
 	public void handle_client(IPayloadContext context){
-		((UiPacketReceiver)net.minecraft.client.Minecraft.getInstance().player.containerMenu).onPacket(com, true);
+		context.workHandler().submitAsync(() -> {
+			((UiPacketReceiver)net.minecraft.client.Minecraft.getInstance().player.containerMenu).onPacket(com, true);
+		});
 	}
 
 	public void handle_server(IPayloadContext context){
-		((UiPacketReceiver)context.player().get().containerMenu).onPacket(com, false);
+		context.workHandler().submitAsync(() -> {
+			((UiPacketReceiver)context.player().get().containerMenu).onPacket(com, false);
+		});
 	}
 
 }
