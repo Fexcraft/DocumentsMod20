@@ -9,6 +9,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 import static net.neoforged.fml.common.Mod.EventBusSubscriber.Bus.*;
 
@@ -16,9 +17,9 @@ import static net.neoforged.fml.common.Mod.EventBusSubscriber.Bus.*;
 public class ClientEvents {
 
     @SubscribeEvent
-    public static void clientInit(FMLClientSetupEvent event){
-        MenuScreens.register((MenuType)Documents.DOC_EDITOR.get(), DocEditorScreen::new);
-        MenuScreens.register((MenuType)Documents.DOC_VIEWER.get(), DocViewerScreen::new);
+    public static void clientInit(RegisterMenuScreensEvent event){
+        event.register(Documents.DOC_EDITOR.get(), DocEditorScreen::new);
+        event.register(Documents.DOC_VIEWER.get(), DocViewerScreen::new);
     }
 
 }
