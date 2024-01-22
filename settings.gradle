@@ -9,3 +9,6 @@ pluginManagement {
 plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.5.0'
 }
+
+include ':FCL20'
+project(':FCL20').projectDir = new File('/home/ferdinand/Documents/GitHub/FCL20')
