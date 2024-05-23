@@ -1,6 +1,5 @@
 package net.fexcraft.mod.documents.gui;
 
-import net.fexcraft.mod.documents.Documents;
 import net.fexcraft.mod.documents.packet.GuiPacket;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
