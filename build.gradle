@@ -3,11 +3,24 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '7.0.80'
+    id 'net.neoforged.gradle.userdev' version '7.0.97'
 }
 
 version = mod_version
 group = mod_group_id
+
+sourceSets {
+    main {
+        java {
+            srcDirs += 'src/main/java'
+            srcDirs += 'common/java'
+        }
+        resources {
+            srcDirs += 'src/main/resources'
+            srcDirs += 'common/resources'
+        }
+    }
+}
 
 repositories {
     mavenLocal()
