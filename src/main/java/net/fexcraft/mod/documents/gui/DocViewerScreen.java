@@ -1,7 +1,6 @@
 package net.fexcraft.mod.documents.gui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.fexcraft.mod.documents.ExternalTextures;
 import net.fexcraft.mod.documents.data.DocPage;
 import net.fexcraft.mod.documents.data.DocPage.DocPageField;
