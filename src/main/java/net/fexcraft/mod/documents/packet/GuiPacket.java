@@ -1,7 +1,5 @@
 package net.fexcraft.mod.documents.packet;
 
-import net.fexcraft.app.json.JsonHandler;
-import net.fexcraft.mod.documents.DocRegistry;
 import net.fexcraft.mod.documents.Documents;
 import net.fexcraft.mod.documents.gui.UiPacketReceiver;
 import net.minecraft.nbt.CompoundTag;
