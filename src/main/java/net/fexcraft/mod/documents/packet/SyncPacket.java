@@ -2,7 +2,7 @@ package net.fexcraft.mod.documents.packet;
 
 import net.fexcraft.app.json.JsonHandler;
 import net.fexcraft.app.json.JsonMap;
-import net.fexcraft.mod.documents.DocRegistry;
+import net.fexcraft.mod.documents.data.DocRegistry;
 import net.fexcraft.mod.documents.Documents;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
