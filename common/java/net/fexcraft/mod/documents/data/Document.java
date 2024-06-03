@@ -2,7 +2,6 @@ package net.fexcraft.mod.documents.data;
 
 import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonMap;
-import net.fexcraft.mod.documents.DocRegistry;
 import net.fexcraft.mod.documents.ExternalTextures;
 import net.minecraft.resources.ResourceLocation;
 
