@@ -1,6 +1,5 @@
 package net.fexcraft.mod.documents.data;
 
-import net.fexcraft.mod.documents.DocRegistry;
 import net.fexcraft.mod.documents.gui.DocEditorContainer;
 import net.fexcraft.mod.documents.gui.DocViewerContainer;
 import net.minecraft.nbt.CompoundTag;
