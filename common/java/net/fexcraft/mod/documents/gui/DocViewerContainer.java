@@ -1,6 +1,6 @@
 package net.fexcraft.mod.documents.gui;
 
-import net.fexcraft.mod.documents.data.DocRegistry;
+import net.fexcraft.mod.documents.DocRegistry;
 import net.fexcraft.mod.documents.Documents;
 import net.fexcraft.mod.documents.data.Document;
 import net.minecraft.nbt.CompoundTag;
@@ -12,7 +12,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import org.jetbrains.annotations.Nullable;
 
 public class DocViewerContainer extends AbstractContainerMenu implements UiPacketReceiver {
 
@@ -49,18 +48,7 @@ public class DocViewerContainer extends AbstractContainerMenu implements UiPacke
         Documents.LOGGER.info(client + " " + com);
         if(com.contains("open_page")){
             if(client) return;
-            player.openMenu(new MenuProvider() {
-                @Override
-                public Component getDisplayName(){
-                    return Component.literal("Document Viewer");
-                }
-
-                @Nullable
-                @Override
-                public AbstractContainerMenu createMenu(int i, Inventory inventory, Player player){
-                    return new DocViewerContainer(i, inventory);
-                }
-            }, buf -> buf.writeInt(com.getInt("open_page")));
+            Documents.openViewer(player, com.getInt("open_page"));
             return;
         }
     }
