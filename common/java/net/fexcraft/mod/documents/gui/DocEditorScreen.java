@@ -23,11 +23,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import org.joml.Matrix4f;
 
-@OnlyIn(Dist.CLIENT)
+import static net.fexcraft.mod.documents.Documents.send;
+
 public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer> {
 
     public static final ResourceLocation TEXTURE = new ResourceLocation("documents:textures/gui/editor.png");
@@ -138,14 +137,14 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
                         CompoundTag compound = new CompoundTag();
                         compound.putString("field", fieldkeys[selected]);
                         compound.putString("value", val + "");
-                        menu.send(false, compound, menu.player);
+                        send(false, compound, menu.player);
                     }
                 }
                 else{
                     CompoundTag compound = new CompoundTag();
                     compound.putString("field", fieldkeys[selected]);
                     compound.putString("value", field.getValue());
-                    menu.send(false, compound, menu.player);
+                    send(false, compound, menu.player);
                 }
             }
         });
@@ -165,7 +164,7 @@ public class DocEditorScreen extends AbstractContainerScreen<DocEditorContainer>
                 }
                 CompoundTag compound = new CompoundTag();
                 compound.putBoolean("issue", true);
-                menu.send(false, compound, menu.player);
+                send(false, compound, menu.player);
             }
         });
     }
