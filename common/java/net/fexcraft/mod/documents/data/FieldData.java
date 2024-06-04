@@ -2,6 +2,7 @@ package net.fexcraft.mod.documents.data;
 
 import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonMap;
+import net.fexcraft.mod.documents.DocRegistry;
 import net.minecraft.world.item.ItemStack;
 
 import java.time.LocalDate;
