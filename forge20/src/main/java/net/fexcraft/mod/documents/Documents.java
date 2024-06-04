@@ -7,19 +7,29 @@ import net.fexcraft.mod.documents.packet.GuiPacketF;
 import net.fexcraft.mod.documents.packet.SyncPacketF;
 import net.fexcraft.mod.fcl.util.ClientPacketPlayer;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.*;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.extensions.IForgeMenuType;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
@@ -28,13 +38,16 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import net.fexcraft.mod.documents.gui.DocEditorContainer;
 import net.fexcraft.mod.documents.gui.DocViewerContainer;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
+
+import java.io.File;
 
 @Mod(Documents.MODID)
 public class Documents {
 
 	public static final String MODID = "documents";
-	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final Logger LOGGER = LogUtils.getLogger();
 	public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 	public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 	public static final RegistryObject<Item> DOCITEM = ITEMS.register("document", () -> new DocumentItem());
@@ -104,6 +117,60 @@ public class Documents {
 			DocRegistry.opl(event.getEntity());
 		}
 
+		@SubscribeEvent
+		public static void onCmdReg(RegisterCommandsEvent event){
+			event.getDispatcher().register(DocumentsCommand.get());
+		}
+
+	}
+
+	public static void sendSyncTo(ServerPlayer player){
+		CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SyncPacketF(DocRegistry.confmap));
+	}
+
+	public static MinecraftServer getCurrentServer(){
+		return ServerLifecycleHooks.getCurrentServer();
+	}
+
+	public static void send(boolean toclient, CompoundTag compound, Player player){
+		if(toclient){
+			CHANNEL.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer)player), new GuiPacketF(compound));
+		}
+		else{
+			CHANNEL.send(PacketDistributor.SERVER.noArg(), new GuiPacketF(compound));
+		}
+	}
+
+	public static File getConfigDir(){
+		return FMLPaths.CONFIGDIR.get().toFile();
+	}
+
+	public static void openViewer(Player player, int page){
+		NetworkHooks.openScreen((ServerPlayer)player, new MenuProvider() {
+			@Override
+			public Component getDisplayName(){
+				return Component.literal("Document Viewer");
+			}
+
+			@Override
+			public AbstractContainerMenu createMenu(int i, Inventory inventory, Player player){
+				return new DocViewerContainer(i, inventory);
+			}
+		}, buf -> buf.writeInt(page));
+	}
+
+	public static void openViewerOrEditor(Player player, CompoundTag com){
+		NetworkHooks.openScreen((ServerPlayer)player, new MenuProvider() {
+			@Override
+			public Component getDisplayName(){
+				return Component.literal(com.contains("document:issued") ? "Document Viewer" : "Document Editor");
+			}
+
+			@Override
+			public AbstractContainerMenu createMenu(int i, Inventory inventory, Player player){
+				return com.contains("document:issued") ? new DocViewerContainer(i, inventory) : new DocEditorContainer(i, inventory);
+			}
+		}, buf -> buf.writeInt(0));
 	}
 
 }
