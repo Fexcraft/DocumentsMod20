@@ -1,5 +1,7 @@
 package net.fexcraft.mod.documents.data;
 
+import net.fexcraft.mod.documents.DocRegistry;
+import net.fexcraft.mod.documents.Documents;
 import net.fexcraft.mod.documents.gui.DocEditorContainer;
 import net.fexcraft.mod.documents.gui.DocViewerContainer;
 import net.minecraft.nbt.CompoundTag;
@@ -14,8 +16,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -30,7 +30,6 @@ public class DocumentItem extends Item {
 		INSTANCE = this;
 	}
 
-	@OnlyIn(Dist.CLIENT)
 	@Override
 	public void appendHoverText(ItemStack stack, Level world, List<Component> list, TooltipFlag flag){
 		if(stack.hasTag() && stack.getTag().contains(NBTKEY)){
@@ -64,18 +63,7 @@ public class DocumentItem extends Item {
 				return InteractionResultHolder.fail(stack);
 			}
 			else{
-				player.openMenu(new MenuProvider(){
-					@Override
-					public Component getDisplayName(){
-						return Component.literal(com.contains("document:issued") ? "Document Viewer" : "Document Editor");
-					}
-
-					@Nullable
-					@Override
-					public AbstractContainerMenu createMenu(int i, Inventory inventory, Player player) {
-						return com.contains("document:issued") ? new DocViewerContainer(i, inventory) : new DocEditorContainer(i, inventory);
-					}
-				}, buf -> buf.writeInt(0));
+				Documents.openViewerOrEditor(player, com);
 				return InteractionResultHolder.success(stack);
 			}
 		}
