@@ -9,7 +9,6 @@ import net.fexcraft.mod.documents.data.DocumentItem;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.fml.loading.FMLPaths;
 
 import java.io.File;
 import java.util.Date;
@@ -28,7 +27,7 @@ public class DocRegistry {
 	private static File file;
 
 	public static void init(){
-		file = new File(cfgfolder = FMLPaths.CONFIGDIR.get().toFile(), "/documents.json");
+		file = new File(cfgfolder = Documents.getConfigDir(), "/documents.json");
 		if(!file.exists()){
 			JsonMap map = new JsonMap();
 			map.add("comment", "If you need help filling out this config file, visit the wiki!");
