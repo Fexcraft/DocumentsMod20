@@ -6,8 +6,8 @@ import net.fexcraft.mod.documents.data.Document;
 import net.fexcraft.mod.documents.data.DocumentItem;
 import net.fexcraft.mod.documents.gui.DocEditorContainer;
 import net.fexcraft.mod.documents.gui.DocViewerContainer;
-import net.fexcraft.mod.documents.packet.GuiPacket;
-import net.fexcraft.mod.documents.packet.SyncPacket;
+import net.fexcraft.mod.documents.packet.GuiPacketN;
+import net.fexcraft.mod.documents.packet.SyncPacketN;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -79,10 +79,10 @@ public class Documents {
         @SubscribeEvent
         public static void register(final RegisterPayloadHandlerEvent event) {
             final IPayloadRegistrar registrar = event.registrar(MODID).versioned("1.0.0").optional();
-            registrar.common(SYNC_PACKET, SyncPacket::read, handler -> handler.client(SyncPacket::handle));
-            registrar.common(UI_PACKET, GuiPacket::read, handler -> {
-                handler.server(GuiPacket::handle_server);
-                handler.client(GuiPacket::handle_client);
+            registrar.common(SYNC_PACKET, SyncPacketN::read, handler -> handler.client(SyncPacketN::handle));
+            registrar.common(UI_PACKET, GuiPacketN::read, handler -> {
+                handler.server(GuiPacketN::handle_server);
+                handler.client(GuiPacketN::handle_client);
             });
         }
 
@@ -95,7 +95,7 @@ public class Documents {
         public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
             if(event.getEntity().level().isClientSide) return;
             DocRegistry.opj(event.getEntity());
-            PacketDistributor.PLAYER.with((ServerPlayer)event.getEntity()).send(new SyncPacket(DocRegistry.confmap));
+            PacketDistributor.PLAYER.with((ServerPlayer)event.getEntity()).send(new SyncPacketN(DocRegistry.confmap));
         }
 
         @SubscribeEvent
@@ -137,7 +137,7 @@ public class Documents {
                     }
                     DocRegistry.init();
                     entity.getServer().getPlayerList().getPlayers().forEach(player -> {
-            PacketDistributor.PLAYER.with(player).send(new SyncPacket(DocRegistry.confmap));
+            PacketDistributor.PLAYER.with(player).send(new SyncPacketN(DocRegistry.confmap));
                     });
                     cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.docs_reloaded"));
                     return 0;
