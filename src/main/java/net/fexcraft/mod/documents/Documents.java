@@ -13,8 +13,12 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -23,6 +27,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
@@ -35,147 +40,132 @@ import net.neoforged.neoforge.network.registration.IPayloadRegistrar;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
+
+import java.io.File;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(Documents.MODID)
 public class Documents {
 
-    public static final String MODID = "documents";
-    public static final Logger LOGGER = LogUtils.getLogger();
-    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
-    public static final DeferredItem<Item> DOCITEM = ITEMS.registerItem("document", func -> new DocumentItem());
-    public static final ResourceLocation SYNC_PACKET = new ResourceLocation(MODID, "sync");
-    public static final ResourceLocation UI_PACKET = new ResourceLocation(MODID, "ui");
-    public static final DeferredRegister<MenuType<?>> CONTAINERS = DeferredRegister.create(Registries.MENU, MODID);
-    public static final DeferredHolder<MenuType<?>, MenuType<DocEditorContainer>> DOC_EDITOR = CONTAINERS.register("editor", () -> IMenuTypeExtension.create(DocEditorContainer::new));
-    public static final DeferredHolder<MenuType<?>, MenuType<DocViewerContainer>> DOC_VIEWER = CONTAINERS.register("viewer", () -> IMenuTypeExtension.create(DocViewerContainer::new));
+	public static final String MODID = "documents";
+	public static final Logger LOGGER = LogUtils.getLogger();
+	public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
+	public static final DeferredItem<Item> DOCITEM = ITEMS.registerItem("document", func -> new DocumentItem());
+	public static final ResourceLocation SYNC_PACKET = new ResourceLocation(MODID, "sync");
+	public static final ResourceLocation UI_PACKET = new ResourceLocation(MODID, "ui");
+	public static final DeferredRegister<MenuType<?>> CONTAINERS = DeferredRegister.create(Registries.MENU, MODID);
+	public static final DeferredHolder<MenuType<?>, MenuType<DocEditorContainer>> DOC_EDITOR = CONTAINERS.register("editor", () -> IMenuTypeExtension.create(DocEditorContainer::new));
+	public static final DeferredHolder<MenuType<?>, MenuType<DocViewerContainer>> DOC_VIEWER = CONTAINERS.register("viewer", () -> IMenuTypeExtension.create(DocViewerContainer::new));
 
-    public Documents(IEventBus eventbus){
-        eventbus.addListener(this::commonSetup);
-        ITEMS.register(eventbus);
-        CONTAINERS.register(eventbus);
-        NeoForge.EVENT_BUS.register(this);
-        eventbus.addListener(this::addCreative);
-    }
+	public Documents(IEventBus eventbus){
+		eventbus.addListener(this::commonSetup);
+		ITEMS.register(eventbus);
+		CONTAINERS.register(eventbus);
+		NeoForge.EVENT_BUS.register(this);
+		eventbus.addListener(this::addCreative);
+	}
 
-    private void commonSetup(final FMLCommonSetupEvent event){
-        DocRegistry.init();
-        DocPerms.loadperms();
-    }
+	public static void sendSyncTo(ServerPlayer player){
+		PacketDistributor.PLAYER.with(player).send(new SyncPacketN(DocRegistry.confmap));
+	}
 
-    private void addCreative(BuildCreativeModeTabContentsEvent event){
-        if(event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) event.accept(DOCITEM);
-    }
+	public static MinecraftServer getCurrentServer(){
+		return ServerLifecycleHooks.getCurrentServer();
+	}
 
-    @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event){
-        //
-    }
+	public static void send(boolean toclient, CompoundTag compound, Player player){
+		if(toclient){
+			PacketDistributor.PLAYER.with((ServerPlayer)player).send(new GuiPacketN(compound));
+		}
+		else{
+			PacketDistributor.SERVER.noArg().send(new GuiPacketN(compound));
+		}
+	}
 
-    @Mod.EventBusSubscriber(modid = "documents", bus = Mod.EventBusSubscriber.Bus.MOD)
-    public static class RegistryEvents {
+	public static File getConfigDir(){
+		return FMLPaths.CONFIGDIR.get().toFile();
+	}
 
-        @SubscribeEvent
-        public static void register(final RegisterPayloadHandlerEvent event) {
-            final IPayloadRegistrar registrar = event.registrar(MODID).versioned("1.0.0").optional();
-            registrar.common(SYNC_PACKET, SyncPacketN::read, handler -> handler.client(SyncPacketN::handle));
-            registrar.common(UI_PACKET, GuiPacketN::read, handler -> {
-                handler.server(GuiPacketN::handle_server);
-                handler.client(GuiPacketN::handle_client);
-            });
-        }
+	public static void openViewer(Player player, int page){
+		player.openMenu(new MenuProvider() {
+			@Override
+			public Component getDisplayName(){
+				return Component.literal("Document Viewer");
+			}
 
-    }
+			@Override
+			public AbstractContainerMenu createMenu(int i, Inventory inventory, Player player){
+				return new DocViewerContainer(i, inventory);
+			}
+		}, buf -> buf.writeInt(page));
+	}
 
-    @Mod.EventBusSubscriber(modid = "documents")
-    public static class Events {
+	public static void openViewerOrEditor(Player player, CompoundTag com){
+		player.openMenu(new MenuProvider() {
+			@Override
+			public Component getDisplayName(){
+				return Component.literal(com.contains("document:issued") ? "Document Viewer" : "Document Editor");
+			}
 
-        @SubscribeEvent
-        public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
-            if(event.getEntity().level().isClientSide) return;
-            DocRegistry.opj(event.getEntity());
-            PacketDistributor.PLAYER.with((ServerPlayer)event.getEntity()).send(new SyncPacketN(DocRegistry.confmap));
-        }
+			@Override
+			public AbstractContainerMenu createMenu(int i, Inventory inventory, Player player){
+				return com.contains("document:issued") ? new DocViewerContainer(i, inventory) : new DocEditorContainer(i, inventory);
+			}
+		}, buf -> buf.writeInt(0));
+	}
 
-        @SubscribeEvent
-        public static void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event){
-            if(event.getEntity().level().isClientSide) return;
-            DocRegistry.opl(event.getEntity());
-        }
+	private void commonSetup(final FMLCommonSetupEvent event){
+		DocRegistry.init();
+		DocPerms.loadperms();
+	}
 
-        @SubscribeEvent
-        public static void onCmdReg(RegisterCommandsEvent event){
-            event.getDispatcher().register(Commands.literal("documents")
-                .then(Commands.literal("list").executes(cmd -> {
-                    cmd.getSource().sendSystemMessage(Component.literal("\u00A77============"));
-                    for(String str : DocRegistry.DOCS.keySet()){
-                        cmd.getSource().sendSystemMessage(Component.literal(str));
-                    }
-                    return 0;
-                }))
-                .then(Commands.literal("uuid").executes(cmd -> {
-                    LOGGER.info(cmd.getSource().getPlayerOrException().toString());
-                    cmd.getSource().sendSystemMessage(Component.literal(cmd.getSource().getPlayerOrException().getGameProfile().getId().toString()));
-                    return 0;
-                }))
-                .then(Commands.literal("reload-perms").executes(cmd -> {
-                    Player entity = cmd.getSource().getPlayerOrException();
-                    if(!DocPerms.hasPerm(entity, "command.reload-perms") && !entity.hasPermissions(4)){
-                        cmd.getSource().sendFailure(Component.translatable("documents.cmd.no_permission"));
-                        return 1;
-                    }
-                    DocPerms.loadperms();
-                    cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.perms_reloaded"));
-                    return 0;
-                }))
-                .then(Commands.literal("reload-docs").executes(cmd -> {
-                    Player entity = cmd.getSource().getPlayerOrException();
-                    if(!DocPerms.hasPerm(entity, "command.reload-docs") && !entity.hasPermissions(4)){
-                        cmd.getSource().sendFailure(Component.translatable("documents.cmd.no_permission"));
-                        return 1;
-                    }
-                    DocRegistry.init();
-                    entity.getServer().getPlayerList().getPlayers().forEach(player -> {
-            PacketDistributor.PLAYER.with(player).send(new SyncPacketN(DocRegistry.confmap));
-                    });
-                    cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.docs_reloaded"));
-                    return 0;
-                }))
-                .then(Commands.literal("get").then(Commands.argument("id", StringArgumentType.word()).executes(cmd -> {
-                    Document doc = DocRegistry.DOCS.get(cmd.getArgument("id", String.class));
-                    if(doc == null){
-                        cmd.getSource().sendFailure(Component.translatable("documents.cmd.doc_not_found"));
-                        return -1;
-                    }
-                    else{
-                        if(!DocPerms.hasPerm(cmd.getSource().getPlayerOrException(), "command.get", doc.id)){
-                            cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.no_permission"));
-                            return -1;
-                        }
-                        ItemStack stack = new ItemStack(DocumentItem.INSTANCE);
-                        CompoundTag com = stack.hasTag() ? stack.getTag() : new CompoundTag();
-                        com.putString(DocumentItem.NBTKEY, doc.id);
-                        stack.setTag(com);
-                        cmd.getSource().getPlayerOrException().addItem(stack);
-                        cmd.getSource().sendSystemMessage(Component.translatable("documents.cmd.added"));
-                        LOGGER.info(com.toString());
-                    }
-                    return 0;
-                })))
-                .executes(cmd -> {
-                    cmd.getSource().sendSystemMessage(Component.literal("\u00A77============"));
-                    cmd.getSource().sendSystemMessage(Component.literal("/documents list"));
-                    cmd.getSource().sendSystemMessage(Component.literal("/documents get"));
-                    cmd.getSource().sendSystemMessage(Component.literal("/documents uuid"));
-                    cmd.getSource().sendSystemMessage(Component.literal("/documents reload-perms"));
-                    cmd.getSource().sendSystemMessage(Component.literal("/documents reload-docs"));
-                    cmd.getSource().sendSystemMessage(Component.literal("\u00A77============"));
-                    return 0;
-                })
-            );
-        }
+	private void addCreative(BuildCreativeModeTabContentsEvent event){
+		if(event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) event.accept(DOCITEM);
+	}
 
-    }
+	@SubscribeEvent
+	public void onServerStarting(ServerStartingEvent event){
+		//
+	}
+
+	@Mod.EventBusSubscriber(modid = "documents", bus = Mod.EventBusSubscriber.Bus.MOD)
+	public static class RegistryEvents {
+
+		@SubscribeEvent
+		public static void register(final RegisterPayloadHandlerEvent event){
+			final IPayloadRegistrar registrar = event.registrar(MODID).versioned("1.0.0").optional();
+			registrar.common(SYNC_PACKET, SyncPacketN::read, handler -> handler.client(SyncPacketN::handle));
+			registrar.common(UI_PACKET, GuiPacketN::read, handler -> {
+				handler.server(GuiPacketN::handle_server);
+				handler.client(GuiPacketN::handle_client);
+			});
+		}
+
+	}
+
+	@Mod.EventBusSubscriber(modid = "documents")
+	public static class Events {
+
+		@SubscribeEvent
+		public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
+			if(event.getEntity().level().isClientSide) return;
+			DocRegistry.opj(event.getEntity());
+			PacketDistributor.PLAYER.with((ServerPlayer)event.getEntity()).send(new SyncPacketN(DocRegistry.confmap));
+		}
+
+		@SubscribeEvent
+		public static void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event){
+			if(event.getEntity().level().isClientSide) return;
+			DocRegistry.opl(event.getEntity());
+		}
+
+		@SubscribeEvent
+		public static void onCmdReg(RegisterCommandsEvent event){
+			event.getDispatcher().register(DocumentsCommand.get());
+		}
+
+	}
 
 }
