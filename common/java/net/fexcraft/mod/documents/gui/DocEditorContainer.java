@@ -19,7 +19,8 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
+
+import static net.fexcraft.mod.documents.Documents.send;
 
 public class DocEditorContainer extends AbstractContainerMenu implements UiPacketReceiver {
 
@@ -103,7 +104,7 @@ public class DocEditorContainer extends AbstractContainerMenu implements UiPacke
             }
             else if(data.type == FieldType.UUID){
                 try{
-                    GameProfile gp = ServerLifecycleHooks.getCurrentServer().getProfileCache().get(value).get();
+                    GameProfile gp = Documents.getCurrentServer().getProfileCache().get(value).get();
                     if(gp != null && gp.getId() != null && gp.getName() != null){
                         value = gp.getId().toString();
                     }
@@ -131,7 +132,7 @@ public class DocEditorContainer extends AbstractContainerMenu implements UiPacke
         com.putString("document:issuer_name", player.getGameProfile().getName());
         if(client) return;
         try{
-            GameProfile gp = ServerLifecycleHooks.getCurrentServer().getProfileCache().get(UUID.fromString(com.getString("document:uuid"))).get();
+            GameProfile gp = Documents.getCurrentServer().getProfileCache().get(UUID.fromString(com.getString("document:uuid"))).get();
             com.putString("document:player_name", gp.getName());
         }
         catch(Exception e){
