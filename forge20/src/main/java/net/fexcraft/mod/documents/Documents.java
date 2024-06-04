@@ -86,7 +86,7 @@ public class Documents {
 		});
 		CHANNEL.registerMessage(2, SyncPacketF.class, (packet, buffer) -> packet.write(buffer), buffer -> SyncPacketF.read(buffer), (packet, context) -> {
 			context.get().enqueueWork(() -> {
-				if(context.get().getDirection().getOriginationSide().isClient()){
+				if(context.get().getDirection().getOriginationSide().isServer()){
 					Documents.LOGGER.info(packet.map().toString());
 					DocRegistry.load(packet.map());
 					DocRegistry.DOCS.values().forEach(doc -> doc.linktextures());
